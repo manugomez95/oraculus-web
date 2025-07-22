@@ -518,80 +518,194 @@ class StoryTree:
             print("Warning: ANTHROPIC_API_KEY not found. LLM features will be limited.")
     
     def _create_seed_tree(self):
-        """Create the initial seed tree with 8 nodes"""
+        """Create the initial cyberpunk-themed seed tree with 8 nodes"""
         
         # Root node - Beginning
         self.root = Node("start", 
-                        story="You wake up in a dimly lit room with no memory of how you got here. "
-                              "The air feels thick and mysterious. To your left, you see a dusty mirror "
-                              "reflecting strange shadows. To your right, an old wooden door stands slightly ajar.",
+                        story="You wake up in a sterile med-bay, neural interface ports still smoking from "
+                              "a forced disconnection. The taste of copper fills your mouth as you realize "
+                              "your last memory was jacking into a corp server. Red warning lights bathe "
+                              "the room in blood-colored shadows. To your left, a cracked AR display flickers "
+                              "with encrypted data. To your right, a blast door stands ajar - beyond it, "
+                              "the neon-soaked streets of Neo-Tokyo await.",
                         node_id="start")
         
         # Level 1 choices
-        mirror_node = Node("examine_mirror", 
+        examine_data = Node("examine_data", 
                           parent=self.root,
-                          story="You approach the ornate mirror. As you look into it, your reflection "
-                                "seems to shimmer and change. For a moment, you see yourself differently - "
-                                "older, younger, or perhaps from another time entirely. The mirror's surface "
-                                "ripples like water.",
-                          node_id="examine_mirror")
+                          story="You jack into the damaged display using your neural interface. Static floods "
+                                "your vision before clearing to reveal classified corporate files - assassination "
+                                "contracts, human trafficking logs, and worse. Your own name appears on a "
+                                "termination list marked 'Priority Alpha.' The data suggests you discovered "
+                                "something that threatens the entire power structure of Neo-Tokyo's corporate elite.",
+                          node_id="examine_data")
         
-        door_node = Node("approach_door",
+        escape_door = Node("escape_door",
                         parent=self.root, 
-                        story="You slowly push the door open and step into a long, winding corridor. "
-                              "Ancient torches flicker along the stone walls, casting dancing shadows. "
-                              "The corridor splits into two paths: one descends into darkness, the other "
-                              "leads toward a faint, warm light.",
-                        node_id="approach_door")
+                        story="You stumble through the blast door into an alley reeking of industrial waste "
+                              "and desperate humanity. Holographic advertisements flicker overhead while "
+                              "street vendors hawk black-market chrome and synthetic organs. A figure in a "
+                              "rain-soaked trenchcoat approaches - their augmented eyes glow like amber "
+                              "predators in the darkness. 'You're supposed to be dead,' they whisper urgently.",
+                        node_id="escape_door")
         
-        # Level 2 choices from mirror
-        touch_mirror = Node("touch_mirror",
-                           parent=mirror_node,
-                           story="As your fingertips touch the mirror's surface, it gives way like liquid. "
-                                 "You feel a strange pulling sensation, and suddenly you're standing in what "
-                                 "appears to be the same room, but everything is reversed and slightly different. "
-                                 "A voice whispers: 'Welcome to the other side.'",
-                           node_id="touch_mirror")
+        # Level 2 choices from data examination
+        download_evidence = Node("download_evidence",
+                           parent=examine_data,
+                           story="You download the evidence into your cybernetic memory bank, but the intrusion "
+                                 "triggers security protocols. Ice-cold data-spikes slam into your consciousness "
+                                 "as corporate black-ice begins hunting your neural signature. You have minutes "
+                                 "before they trace your location. The evidence could topple governments, "
+                                 "but it might kill you before you can use it.",
+                           node_id="download_evidence")
         
-        step_away = Node("step_away_mirror", 
-                        parent=mirror_node,
-                        story="You step back from the unsettling mirror, deciding some mysteries are better "
-                              "left alone. As you turn away, you notice a small, leather-bound journal on a "
-                              "nearby table that wasn't there before. Its pages seem to flutter on their own.",
-                        node_id="step_away_mirror")
+        destroy_terminal = Node("destroy_terminal", 
+                        parent=examine_data,
+                        story="You overload the terminal's power core, watching it explode in a shower of "
+                              "sparks and molten circuitry. The evidence is destroyed, but so is your trail. "
+                              "As smoke clears, you notice a hidden data-pad concealed behind the wreckage - "
+                              "it contains coordinates to a safe house and a single message: 'The revolution "
+                              "begins with you.'",
+                        node_id="destroy_terminal")
         
-        # Level 2 choices from door
-        dark_path = Node("dark_path",
-                        parent=door_node,
-                        story="You choose the darker path, feeling your way along the cold stone walls. "
-                              "After several minutes, you emerge into a vast underground chamber filled with "
-                              "glowing crystals. Their light reveals ancient carvings on the walls that seem "
-                              "to tell a story about travelers like yourself.",
-                        node_id="dark_path")
+        # Level 2 choices from escape
+        trust_stranger = Node("trust_stranger",
+                        parent=escape_door,
+                        story="You follow the stranger into the maze of Neo-Tokyo's undercity. They lead you "
+                              "through forgotten subway tunnels lined with fiber-optic veins pulsing with "
+                              "stolen data. 'Welcome to the Resistance,' they say, removing their hood to "
+                              "reveal extensive neural modifications. 'We've been waiting for someone with "
+                              "your skills to help us bring down the corporate oligarchy.'",
+                        node_id="trust_stranger")
         
-        light_path = Node("light_path", 
-                         parent=door_node,
-                         story="Following the warm light, you find yourself in a cozy library filled with "
-                               "floating books and scrolls. An elderly figure in robes looks up from a desk "
-                               "and smiles knowingly. 'Ah, another seeker has arrived. I've been expecting you.'",
-                         node_id="light_path")
+        run_alone = Node("run_alone", 
+                         parent=escape_door,
+                         story="You push past the stranger and dive deeper into the urban labyrinth. Corporate "
+                               "security drones buzz overhead like metallic wasps, their searchlights cutting "
+                               "through the perpetual smog. You find refuge in an abandoned arcade, its broken "
+                               "games casting ghostly glows. Here, you realize you have a choice: disappear forever "
+                               "or fight back against the system that wants you dead.",
+                         node_id="run_alone")
         
-        # Level 3 choices
-        investigate_crystals = Node("investigate_crystals",
-                                  parent=dark_path,
-                                  story="You approach the largest crystal, which pulses with an inner light. "
-                                        "As you touch it, visions flood your mind - glimpses of other adventurers "
-                                        "who came before you, each making choices that shaped their destiny. "
-                                        "You realize this place responds to the decisions of those who enter.",
-                                  node_id="investigate_crystals")
+        # Level 3 choices - These lead to victory or death endings
+        final_hack = Node("final_hack",
+                                  parent=download_evidence,
+                                  story="You prepare for the ultimate hack - a direct assault on the corporate "
+                                        "mainframe using the stolen evidence as your weapon. Your neural implants "
+                                        "burn as you jack in, knowing this will either expose the conspiracy to "
+                                        "the world or kill you in the process. The fate of Neo-Tokyo's oppressed "
+                                        "millions hangs in the balance. Victory or death - there is no middle ground.",
+                                  node_id="final_hack")
         
-        meet_librarian = Node("meet_librarian",
-                             parent=light_path, 
-                             story="The librarian gestures to a chair across from their desk. 'Every story "
-                                   "needs a beginning, and every choice creates new possibilities. You have "
-                                   "the power to shape not just your path, but the very nature of this realm. "
-                                   "What kind of story do you wish to write?'",
-                             node_id="meet_librarian")
+        resistance_leader = Node("resistance_leader",
+                             parent=trust_stranger, 
+                             story="Standing before the Resistance council, you realize this moment will define "
+                                   "not just your fate, but the future of human freedom in this corporate dystopia. "
+                                   "The evidence you carry could spark a revolution, but the corporations won't "
+                                   "go down without a fight. Blood will be spilled, lives will be lost, and in "
+                                   "the end, either you'll be remembered as the spark that lit the fire of freedom "
+                                   "or as another casualty in humanity's last stand.",
+                             node_id="resistance_leader")
+        
+        # Add ending nodes from destroy_terminal and run_alone paths
+        safe_house = Node("safe_house",
+                         parent=destroy_terminal,
+                         story="Following the coordinates, you reach a hidden safe house in Neo-Tokyo's "
+                               "industrial district. But it's a trap. Corporate assassins emerge from the "
+                               "shadows, their chrome weapons gleaming in the neon light. You have one "
+                               "final choice: fight with everything you have or surrender to your fate.",
+                         node_id="safe_house")
+        
+        disappear = Node("disappear",
+                        parent=run_alone,
+                        story="You've successfully vanished into Neo-Tokyo's sprawling underworld, but "
+                              "survival comes at a price. The corporations still hunt you, and the "
+                              "oppressed masses still suffer under their rule. You could live quietly "
+                              "in the shadows forever, or make one last stand to change everything.",
+                        node_id="disappear")
+        
+        # Level 4 - Final Endings (Death or Victory)
+        hack_victory = Node("hack_victory",
+                           parent=final_hack,
+                           story="Your neural implants overload as terabytes of corporate corruption flood "
+                                 "the global net. Blood streams from your eyes, but you smile as every "
+                                 "screen in Neo-Tokyo broadcasts the truth. The corporate oligarchy crumbles "
+                                 "in minutes. Your body fails, but your sacrifice ignites a revolution that "
+                                 "frees humanity. You die a hero, remembered forever as the one who brought "
+                                 "down the system. **VICTORY THROUGH SACRIFICE**",
+                           node_id="hack_victory")
+        
+        hack_death = Node("hack_death", 
+                         parent=final_hack,
+                         story="The corporate black-ice tears through your defenses like liquid fire. Your "
+                               "neural implants fry, cooking your brain from the inside. You scream as "
+                               "your consciousness dissolves into digital static. The evidence dies with you, "
+                               "and the corporations cover up another 'cyber-psychosis incident.' Your body "
+                               "is found days later, just another casualty of the system you tried to fight. "
+                               "**DEATH - THE CORPS WIN**",
+                         node_id="hack_death")
+        
+        revolution_victory = Node("revolution_victory",
+                                 parent=resistance_leader,
+                                 story="You lead the uprising that tears through Neo-Tokyo's corporate districts "
+                                       "like wildfire. Megacorp towers burn as the oppressed masses rise up. "
+                                       "In the final battle, a corporate sniper's bullet finds you, but your "
+                                       "revolution succeeds. Your last breath witnesses the birth of a free "
+                                       "humanity. Statues are built in your honor, and children sing songs of "
+                                       "your sacrifice. **VICTORY THROUGH REVOLUTION**",
+                                 node_id="revolution_victory")
+        
+        revolution_death = Node("revolution_death",
+                               parent=resistance_leader, 
+                               story="The corporate security forces were ready. Your revolution becomes a "
+                                     "massacre as orbital bombardments rain death from above. You die clutching "
+                                     "a resistance fighter's hand as Neo-Tokyo burns around you. The survivors "
+                                     "are rounded up and executed publicly as a warning. Your dream of freedom "
+                                     "dies in blood and ashes, and the corps tighten their grip even further. "
+                                     "**DEATH - THE RESISTANCE FALLS**",
+                               node_id="revolution_death")
+        
+        final_stand_victory = Node("final_stand_victory",
+                                  parent=safe_house,
+                                  story="You fight like a cyber-demon, your combat implants screaming as you "
+                                        "cut through the assassins. Blood paints the safe house walls, but you "
+                                        "survive. The hidden data-pad contains coordinates to an underground "
+                                        "broadcast station. You transmit the revolution's call across Neo-Tokyo. "
+                                        "As corporate forces storm the building, you detonate hidden explosives, "
+                                        "taking them with you. Your sacrifice sparks the uprising that frees "
+                                        "humanity. **VICTORY THROUGH DEFIANCE**",
+                                  node_id="final_stand_victory")
+        
+        final_stand_death = Node("final_stand_death",
+                                parent=safe_house,
+                                story="The assassins are too many, too skilled. Their mono-molecular blades "
+                                      "slice through your augmentations like paper. You fall to your knees, "
+                                      "watching your blood pool on the concrete. Your last thought is of the "
+                                      "millions who will continue to suffer under corporate rule. The data-pad "
+                                      "is destroyed, the resistance never learns the truth, and another rebel "
+                                      "dies forgotten in the shadows. **DEATH - ALONE AND FORGOTTEN**",
+                                node_id="final_stand_death")
+        
+        shadow_victory = Node("shadow_victory",
+                             parent=disappear,
+                             story="From the shadows, you become Neo-Tokyo's digital ghost. For years you "
+                                   "wage a silent war, leaking corporate secrets, funding rebels, saving "
+                                   "lives one hack at a time. When age finally claims you in a forgotten "
+                                   "cyber-cafe, the revolution you quietly nurtured erupts across the globe. "
+                                   "No one knows your name, but your patient work freed humanity. You die "
+                                   "peacefully, watching the corporate towers fall on every screen. "
+                                   "**VICTORY THROUGH PATIENCE**",
+                             node_id="shadow_victory")
+        
+        shadow_death = Node("shadow_death",
+                           parent=disappear,
+                           story="The hunters never stop. Corporate assassins find you in your hideout after "
+                                 "years of searching. You're too old, too tired to fight anymore. They put "
+                                 "three bullets in your chest while you sit at your terminal. Your last "
+                                 "sight is the corporate logo on their uniforms. You accomplished nothing, "
+                                 "saved no one, and died as anonymously as you lived. The system grinds on "
+                                 "unchanged. **DEATH - THE HUNT ENDS**",
+                           node_id="shadow_death")
         
         self.current_node = self.root
     
@@ -618,14 +732,24 @@ class StoryTree:
     def _generate_choice_text(self, node_name: str) -> str:
         """Convert node names to readable choice text"""
         choice_map = {
-            "examine_mirror": "Examine the mysterious mirror",
-            "approach_door": "Approach the wooden door", 
-            "touch_mirror": "Touch the mirror's surface",
-            "step_away_mirror": "Step away from the mirror",
-            "dark_path": "Take the dark path downward",
-            "light_path": "Follow the path toward the light",
-            "investigate_crystals": "Investigate the glowing crystals",
-            "meet_librarian": "Speak with the librarian"
+            "examine_data": "Jack into the AR display and examine the encrypted data",
+            "escape_door": "Escape through the blast door into Neo-Tokyo's streets", 
+            "download_evidence": "Download the corporate evidence into your cybernetic memory",
+            "destroy_terminal": "Destroy the terminal to cover your tracks",
+            "trust_stranger": "Trust the stranger and follow them",
+            "run_alone": "Push past the stranger and run alone into the city",
+            "final_hack": "Initiate the final hack to expose the conspiracy",
+            "resistance_leader": "Lead the Resistance in their fight for freedom",
+            "safe_house": "Follow the coordinates to the safe house",
+            "disappear": "Vanish into Neo-Tokyo's underworld forever",
+            "hack_victory": "Override their defenses and broadcast the truth (RISKY)",
+            "hack_death": "Attempt the hack knowing you'll likely die (DANGEROUS)",
+            "revolution_victory": "Lead the revolution with everything you have (ALL IN)",
+            "revolution_death": "Rally the resistance even if it means death (SACRIFICE)",
+            "final_stand_victory": "Fight the assassins with your combat implants (FIGHT)",
+            "final_stand_death": "Accept your fate and die on your terms (SURRENDER)",
+            "shadow_victory": "Wage a patient shadow war from hiding (STEALTH)",
+            "shadow_death": "Try to disappear but know they'll eventually find you (HIDE)"
         }
         return choice_map.get(node_name, node_name.replace("_", " ").title())
     
@@ -647,12 +771,14 @@ class StoryTree:
             except Exception as e:
                 print(f"LLM generation failed: {e}")
         
-        # Fallback choices
+        # Fallback choices - cyberpunk themed
         fallback_choices = [
-            "Continue exploring the area",
-            "Look for more clues about your situation", 
-            "Try to remember how you got here",
-            "Search for a way out"
+            "Scan the area with your augmented vision",
+            "Hack into nearby data terminals for information", 
+            "Try to access your corrupted memory banks",
+            "Search for an escape route through the urban maze",
+            "Contact your underground network for assistance",
+            "Activate your combat protocols and prepare to fight"
         ]
         
         # Add some randomness
@@ -663,17 +789,19 @@ class StoryTree:
         """Generate choices using Claude API"""
         current_story = self.get_current_story()
         
-        prompt = f"""You are generating choices for a dynamic text adventure game.
+        prompt = f"""You are generating choices for a cyberpunk text adventure game set in Neo-Tokyo.
 
 Current situation: {current_story}
 
 Protagonist: {protagonist}
 
 Generate exactly 3 interesting and distinct choices that:
-1. Advance the story meaningfully
-2. Reflect the protagonist's background
-3. Offer different types of approaches (bold, cautious, creative)
-4. Are each 6-12 words long
+1. Advance the cyberpunk story meaningfully with tech/corpo/street themes
+2. Reflect the protagonist's background and cyberpunk archetype
+3. Offer different approaches (aggressive hacking, street violence, stealth infiltration)
+4. Include cyberpunk terminology (chrome, ice, netrun, corps, augments, etc.)
+5. Are each 6-15 words long
+6. Could lead to either victory or death scenarios
 
 Return only the choices, one per line, without numbers or bullets."""
 
@@ -920,10 +1048,10 @@ class Game:
         
         print("\nSelect starting situation:")
         situations = [
-            "A mysterious traveler seeking ancient knowledge",
-            "A scholar who stumbled into a magical realm", 
-            "A warrior searching for a lost artifact",
-            "An ordinary person caught in extraordinary circumstances"
+            "A rogue netrunner who discovered corporate secrets",
+            "A cybernetically enhanced mercenary betrayed by their employers", 
+            "An underground hacker fighting against the system",
+            "A street samurai seeking revenge against the megacorps"
         ]
         
         for i, situation in enumerate(situations, 1):
