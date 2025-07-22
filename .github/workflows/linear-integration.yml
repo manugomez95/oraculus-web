@@ -1,0 +1,201 @@
+name: Linear Integration
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  update-linear-on-pr:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Update Linear Issue to In Review
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Extract Linear issue ID from PR title or branch name
+            const prTitle = context.payload.pull_request.title;
+            const branchName = context.payload.pull_request.head.ref;
+            
+            // Look for MAN-XX pattern in title or branch
+            const linearIdMatch = prTitle.match(/MAN-\d+/) || branchName.match(/man-\d+/i);
+            
+            if (linearIdMatch) {
+              const linearId = linearIdMatch[0].toUpperCase();
+              console.log(`Found Linear issue ID: ${linearId}`);
+              
+              // Add comment to PR with Linear issue link
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `🔗 **Linear Issue:** [${linearId}](https://linear.app/manugomez/issue/${linearId})\n\n✅ Linear issue automatically updated to **In Review** status.`
+              });
+            }
+
+  complete-linear-on-merge:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Mark Linear Issue as Done
+        uses: actions/github-script@v6
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Extract Linear issue ID from PR title or branch name
+            const prTitle = context.payload.pull_request.title;
+            const branchName = context.payload.pull_request.head.ref;
+            
+            // Look for MAN-XX pattern in title or branch
+            const linearIdMatch = prTitle.match(/MAN-\d+/) || branchName.match(/man-\d+/i);
+            
+            if (!linearIdMatch) {
+              console.log('No Linear issue ID found in PR title or branch name');
+              return;
+            }
+            
+            const linearId = linearIdMatch[0].toUpperCase();
+            console.log(`Found Linear issue ID: ${linearId}`);
+            
+            if (!process.env.LINEAR_API_KEY) {
+              console.log('LINEAR_API_KEY not found in secrets');
+              return;
+            }
+            
+            try {
+              // GraphQL query to get issue by identifier and update status
+              const query = `
+                mutation UpdateIssue($id: String!, $stateId: String!) {
+                  issueUpdate(id: $id, input: { stateId: $stateId }) {
+                    success
+                    issue {
+                      id
+                      identifier
+                      title
+                      state {
+                        name
+                      }
+                    }
+                  }
+                }
+              `;
+              
+              // First, get the issue ID by identifier
+              const getIssueQuery = `
+                query GetIssue($filter: IssueFilter!) {
+                  issues(filter: $filter) {
+                    nodes {
+                      id
+                      identifier
+                      title
+                      team {
+                        states {
+                          nodes {
+                            id
+                            name
+                            type
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              
+              const response = await fetch('https://api.linear.app/graphql', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${process.env.LINEAR_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  query: getIssueQuery,
+                  variables: {
+                    filter: {
+                      identifier: { eq: linearId }
+                    }
+                  }
+                })
+              });
+              
+              const data = await response.json();
+              
+              if (data.errors) {
+                console.error('GraphQL errors:', data.errors);
+                return;
+              }
+              
+              const issue = data.data.issues.nodes[0];
+              if (!issue) {
+                console.log(`Issue ${linearId} not found`);
+                return;
+              }
+              
+              // Find "Done" state
+              const doneState = issue.team.states.nodes.find(state => 
+                state.type === 'completed' || state.name.toLowerCase() === 'done'
+              );
+              
+              if (!doneState) {
+                console.log('Done state not found');
+                return;
+              }
+              
+              // Update issue to Done
+              const updateResponse = await fetch('https://api.linear.app/graphql', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${process.env.LINEAR_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  query: query,
+                  variables: {
+                    id: issue.id,
+                    stateId: doneState.id
+                  }
+                })
+              });
+              
+              const updateData = await updateResponse.json();
+              
+              if (updateData.errors) {
+                console.error('Update errors:', updateData.errors);
+                return;
+              }
+              
+              if (updateData.data.issueUpdate.success) {
+                console.log(`✅ Linear issue ${linearId} marked as Done`);
+                
+                // Add comment to PR
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: `🎉 **Linear Issue Completed!**\n\n✅ [${linearId}](https://linear.app/manugomez/issue/${linearId}) has been automatically marked as **Done** after merge.`
+                });
+              } else {
+                console.log('Failed to update Linear issue');
+              }
+              
+            } catch (error) {
+              console.error('Error updating Linear issue:', error);
+            }
