@@ -1,0 +1,185 @@
+{
+  "description": "API Examples for Oraculus Variable System",
+  
+  "list_templates_response": {
+    "templates": [
+      {
+        "id": "fantasy_adventure",
+        "title": "Fantasy Adventure",
+        "description": "A customizable fantasy adventure with magical elements"
+      },
+      {
+        "id": "scifi_exploration", 
+        "title": "Sci-Fi Exploration",
+        "description": "A space exploration adventure with technology and alien worlds"
+      }
+    ]
+  },
+  
+  "get_template_variables_request": {
+    "template_id": "fantasy_adventure"
+  },
+  
+  "get_template_variables_response": {
+    "template_id": "fantasy_adventure",
+    "title": "Fantasy Adventure", 
+    "description": "A customizable fantasy adventure with magical elements",
+    "variables": {
+      "setting": {
+        "name": "setting",
+        "description": "The world/location where the adventure takes place",
+        "type": "choice",
+        "options": ["enchanted_forest", "ancient_castle", "mystical_mountains", "underground_dungeon"],
+        "min_value": null,
+        "max_value": null,
+        "default_value": null
+      },
+      "magical_item": {
+        "name": "magical_item",
+        "description": "A magical item the protagonist encounters",
+        "type": "choice", 
+        "options": ["glowing_crystal", "ancient_scroll", "enchanted_mirror", "mysterious_amulet"],
+        "min_value": null,
+        "max_value": null,
+        "default_value": null
+      },
+      "threat_level": {
+        "name": "threat_level",
+        "description": "How dangerous the adventure should be",
+        "type": "range",
+        "options": null,
+        "min_value": 1,
+        "max_value": 10,
+        "default_value": "5"
+      }
+    },
+    "predefined_scenarios": [
+      {
+        "name": "Lost Scholar",
+        "setting": "ancient_castle",
+        "magical_item": "ancient_scroll",
+        "threat_level": "3"
+      },
+      {
+        "name": "Dangerous Quest",
+        "setting": "underground_dungeon", 
+        "magical_item": "glowing_crystal",
+        "threat_level": "8"
+      }
+    ]
+  },
+  
+  "generate_story_request": {
+    "template_id": "fantasy_adventure",
+    "variable_values": {
+      "setting": "enchanted_forest",
+      "magical_item": "glowing_crystal", 
+      "threat_level": "6"
+    },
+    "character_data": {
+      "name": "Elena",
+      "gender": "female",
+      "age": "28",
+      "situation": "A scholar seeking ancient knowledge"
+    }
+  },
+  
+  "generate_story_success_response": {
+    "success": true,
+    "story": "You awaken in a enchanted_forest, feeling disoriented and unsure of how you arrived here.\nAs a adult female A scholar seeking ancient knowledge, you notice a glowing_crystal nearby that seems to pulse with otherworldly energy.\nThe air crackles with magic, and you sense that this place holds both great promise and danger (threat level: 6/10).\nThe path ahead is shrouded in mystery, and your choices will determine your fate in this realm.",
+    "cache_key": "template_fantasy_adventure_female_adult",
+    "character_variables": {
+      "name": "Elena",
+      "gender": "female", 
+      "age": "28",
+      "age_range": "adult",
+      "gender_category": "female",
+      "situation": "A scholar seeking ancient knowledge"
+    }
+  },
+  
+  "generate_story_error_response": {
+    "error": "Validation failed",
+    "details": [
+      "Variable 'setting' must be one of: enchanted_forest, ancient_castle, mystical_mountains, underground_dungeon",
+      "Required variable 'magical_item' not provided",
+      "Variable 'threat_level' must be at most 10"
+    ]
+  },
+  
+  "custom_template_creation_request": {
+    "template_id": "mystery_investigation",
+    "title": "Mystery Investigation",
+    "description": "A detective mystery with customizable elements",
+    "story_template": "You are investigating a {crime_type} in {location}. As a {age_range} {gender} detective, you notice {clue_type} that might be important. The atmosphere is {mood} and you sense this case has a {difficulty} level of complexity.",
+    "custom_variables": [
+      {
+        "name": "crime_type",
+        "description": "Type of crime being investigated",
+        "type": "choice",
+        "options": ["murder", "theft", "disappearance", "fraud"]
+      },
+      {
+        "name": "location", 
+        "description": "Where the investigation takes place",
+        "type": "choice",
+        "options": ["mansion", "office_building", "small_town", "university"]
+      },
+      {
+        "name": "clue_type",
+        "description": "Initial clue discovered",
+        "type": "choice", 
+        "options": ["bloody_fingerprint", "torn_letter", "strange_symbol", "witness_testimony"]
+      },
+      {
+        "name": "mood",
+        "description": "Atmosphere of the investigation",
+        "type": "choice",
+        "options": ["tense", "mysterious", "urgent", "eerie"]
+      },
+      {
+        "name": "difficulty",
+        "description": "Complexity of the case",
+        "type": "range",
+        "min_value": 1,
+        "max_value": 10,
+        "default_value": "5"
+      }
+    ]
+  },
+  
+  "variable_resolution_examples": {
+    "character_variables": {
+      "name": "Alex",
+      "gender": "male", 
+      "age": "22",
+      "age_range": "young",
+      "gender_category": "male",
+      "situation": "A student on an adventure"
+    },
+    "custom_variables": {
+      "setting": "enchanted_forest",
+      "magical_item": "ancient_scroll",
+      "threat_level": "4"
+    },
+    "template_text_with_variables": "Hello {name}! As a {age_range} {gender_category} {situation}, you find a {magical_item} in the {setting}. Danger level: {threat_level}/10.",
+    "resolved_text": "Hello Alex! As a young male A student on an adventure, you find a ancient_scroll in the enchanted_forest. Danger level: 4/10."
+  },
+  
+  "cache_key_examples": {
+    "old_specific_cache": "touch_mirror_male_27",
+    "new_range_cache": "touch_mirror_male_adult", 
+    "template_cache": "template_fantasy_adventure_female_adult",
+    "age_range_mapping": {
+      "16-25": "young",
+      "26-40": "adult", 
+      "41-60": "middle_aged",
+      "61+": "elder"
+    },
+    "cache_sharing_example": {
+      "character_1": "male, age 27 -> cache: node_male_adult",
+      "character_2": "male, age 29 -> cache: node_male_adult (SAME CACHE!)",
+      "character_3": "male, age 22 -> cache: node_male_young (different cache)"
+    }
+  }
+}
