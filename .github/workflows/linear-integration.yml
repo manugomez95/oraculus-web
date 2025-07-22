@@ -6,14 +6,24 @@ on:
   pull_request_target:
     types: [closed]
 
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
 jobs:
   update-linear-on-pr:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
     steps:
       - name: Update Linear Issue to In Review
         uses: actions/github-script@v6
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             // Extract Linear issue ID from PR title or branch name
             const prTitle = context.payload.pull_request.title;
@@ -38,12 +48,17 @@ jobs:
   complete-linear-on-merge:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
     steps:
       - name: Mark Linear Issue as Done
         uses: actions/github-script@v6
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             // Extract Linear issue ID from PR title or branch name
             const prTitle = context.payload.pull_request.title;
