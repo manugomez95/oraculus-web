@@ -8,7 +8,8 @@ import os
 import json
 import random
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from anytree import Node, RenderTree, PreOrderIter
 from anthropic import Anthropic
 from dotenv import load_dotenv
@@ -26,6 +27,52 @@ class Protagonist:
     
     def __str__(self):
         return f"{self.name} ({self.gender}, {self.age}) - {self.starting_situation}"
+
+
+@dataclass
+class PlayerFeedback:
+    """Represents player feedback for a story choice or experience"""
+    node_id: str
+    choice_index: int
+    rating: int  # 1-5 scale
+    comment: str
+    timestamp: datetime = field(default_factory=datetime.now)
+    protagonist_context: Optional[str] = None
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for JSON serialization"""
+        return {
+            "node_id": self.node_id,
+            "choice_index": self.choice_index,
+            "rating": self.rating,
+            "comment": self.comment,
+            "timestamp": self.timestamp.isoformat(),
+            "protagonist_context": self.protagonist_context
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'PlayerFeedback':
+        """Create from dictionary for JSON deserialization"""
+        return cls(
+            node_id=data["node_id"],
+            choice_index=data["choice_index"],
+            rating=data["rating"],
+            comment=data["comment"],
+            timestamp=datetime.fromisoformat(data["timestamp"]),
+            protagonist_context=data.get("protagonist_context")
+        )
+
+
+@dataclass
+class FeedbackAnalysis:
+    """Analysis of accumulated feedback for story generation"""
+    node_id: str
+    total_feedback_count: int
+    average_rating: float
+    common_themes: List[str]
+    suggested_improvements: List[str]
+    expansion_suggestions: List[str]
+    timestamp: datetime = field(default_factory=datetime.now)
 
 
 class VariableSystem:
@@ -370,6 +417,86 @@ class ChoiceCache:
         self.save_cache()
 
 
+class FeedbackStorage:
+    """Storage and management system for player feedback"""
+    
+    def __init__(self):
+        self.feedback_file = "feedback_data.json"
+        self.analysis_file = "feedback_analysis.json"
+        self.feedback_data: Dict[str, List[PlayerFeedback]] = {}
+        self.analysis_cache: Dict[str, FeedbackAnalysis] = {}
+        self.load_feedback()
+    
+    def load_feedback(self):
+        """Load feedback data from file"""
+        try:
+            if os.path.exists(self.feedback_file):
+                with open(self.feedback_file, 'r') as f:
+                    data = json.load(f)
+                    self.feedback_data = {}
+                    for node_id, feedback_list in data.items():
+                        self.feedback_data[node_id] = [
+                            PlayerFeedback.from_dict(feedback_dict) 
+                            for feedback_dict in feedback_list
+                        ]
+        except Exception as e:
+            print(f"Warning: Could not load feedback data: {e}")
+            self.feedback_data = {}
+    
+    def save_feedback(self):
+        """Save feedback data to file"""
+        try:
+            data = {}
+            for node_id, feedback_list in self.feedback_data.items():
+                data[node_id] = [feedback.to_dict() for feedback in feedback_list]
+            
+            with open(self.feedback_file, 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Could not save feedback data: {e}")
+    
+    def add_feedback(self, feedback: PlayerFeedback):
+        """Add new player feedback"""
+        if feedback.node_id not in self.feedback_data:
+            self.feedback_data[feedback.node_id] = []
+        
+        self.feedback_data[feedback.node_id].append(feedback)
+        self.save_feedback()
+    
+    def get_feedback_for_node(self, node_id: str) -> List[PlayerFeedback]:
+        """Get all feedback for a specific node"""
+        return self.feedback_data.get(node_id, [])
+    
+    def get_feedback_summary(self, node_id: str) -> Dict:
+        """Get summary statistics for a node's feedback"""
+        feedback_list = self.get_feedback_for_node(node_id)
+        if not feedback_list:
+            return {"count": 0, "average_rating": 0.0, "comments": []}
+        
+        total_rating = sum(f.rating for f in feedback_list)
+        average_rating = total_rating / len(feedback_list)
+        comments = [f.comment for f in feedback_list if f.comment.strip()]
+        
+        return {
+            "count": len(feedback_list),
+            "average_rating": average_rating,
+            "comments": comments,
+            "latest_feedback": feedback_list[-5:]  # Last 5 feedback entries
+        }
+    
+    def get_nodes_needing_expansion(self, min_feedback_count: int = 3, min_rating: float = 3.5) -> List[str]:
+        """Identify nodes that have sufficient positive feedback for expansion"""
+        expansion_candidates = []
+        
+        for node_id, feedback_list in self.feedback_data.items():
+            if len(feedback_list) >= min_feedback_count:
+                avg_rating = sum(f.rating for f in feedback_list) / len(feedback_list)
+                if avg_rating >= min_rating:
+                    expansion_candidates.append(node_id)
+        
+        return expansion_candidates
+
+
 class StoryTree:
     """Manages the story tree structure and navigation"""
     
@@ -377,6 +504,7 @@ class StoryTree:
         self.root = None
         self.current_node = None
         self.choice_cache = ChoiceCache()
+        self.feedback_storage = FeedbackStorage()
         self.anthropic_client = None
         self._initialize_anthropic()
         self._create_seed_tree()
@@ -558,22 +686,171 @@ Return only the choices, one per line, without numbers or bullets."""
         choices = [choice.strip() for choice in message.content[0].text.strip().split('\n') if choice.strip()]
         return choices[:3]
     
-    def make_choice(self, choice_index: int, protagonist: Protagonist) -> bool:
-        """Make a choice and advance the story"""
+    def _analyze_feedback_with_llm(self, node_id: str) -> Optional[FeedbackAnalysis]:
+        """Use LLM to analyze accumulated feedback for a node"""
+        if not self.anthropic_client:
+            return None
+        
+        feedback_list = self.feedback_storage.get_feedback_for_node(node_id)
+        if len(feedback_list) < 2:
+            return None
+        
+        # Prepare feedback summary for LLM analysis
+        feedback_summary = self.feedback_storage.get_feedback_summary(node_id)
+        comments_text = "\n".join([f"- {comment}" for comment in feedback_summary["comments"]])
+        
+        node = self._find_node_by_id(node_id)
+        current_story = node.story if node else "Story context not found"
+        
+        prompt = f"""Analyze player feedback for this story segment and provide expansion suggestions.
+
+Story Segment: {current_story}
+
+Feedback Summary:
+- Total feedback: {feedback_summary['count']} responses
+- Average rating: {feedback_summary['average_rating']:.1f}/5
+- Comments:
+{comments_text}
+
+Please analyze this feedback and provide:
+1. Common themes in player responses (3-5 key themes)
+2. Specific improvements suggested by players (3-5 concrete suggestions)
+3. Story expansion ideas that address player interests (3-5 new branch ideas)
+
+Format your response as JSON with keys: "themes", "improvements", "expansions"
+Each should be an array of strings."""
+
+        try:
+            message = self.anthropic_client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=500,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            response_text = message.content[0].text.strip()
+            analysis_data = json.loads(response_text)
+            
+            return FeedbackAnalysis(
+                node_id=node_id,
+                total_feedback_count=feedback_summary['count'],
+                average_rating=feedback_summary['average_rating'],
+                common_themes=analysis_data.get('themes', []),
+                suggested_improvements=analysis_data.get('improvements', []),
+                expansion_suggestions=analysis_data.get('expansions', [])
+            )
+            
+        except Exception as e:
+            print(f"LLM feedback analysis failed: {e}")
+            return None
+    
+    def _find_node_by_id(self, node_id: str) -> Optional[Node]:
+        """Find a node in the tree by its node_id attribute"""
+        if not self.root:
+            return None
+        
+        for node in PreOrderIter(self.root):
+            if hasattr(node, 'node_id') and node.node_id == node_id:
+                return node
+        return None
+    
+    def _generate_new_story_branch(self, parent_node_id: str, feedback_analysis: FeedbackAnalysis, protagonist: Protagonist) -> Optional[Node]:
+        """Generate a new story branch based on feedback analysis"""
+        if not self.anthropic_client:
+            return None
+        
+        parent_node = self._find_node_by_id(parent_node_id)
+        if not parent_node:
+            return None
+        
+        themes_text = ", ".join(feedback_analysis.common_themes)
+        expansions_text = "\n".join([f"- {exp}" for exp in feedback_analysis.expansion_suggestions])
+        
+        prompt = f"""Create a new story branch continuation based on player feedback analysis.
+
+Current Story Context: {parent_node.story}
+
+Protagonist: {protagonist}
+
+Player Feedback Analysis:
+- Average satisfaction: {feedback_analysis.average_rating:.1f}/5
+- Key themes players enjoyed: {themes_text}
+- Requested story expansions:
+{expansions_text}
+
+Create a compelling story continuation (2-3 paragraphs) that:
+1. Builds naturally from the current situation
+2. Incorporates the themes players found engaging
+3. Addresses their expansion interests
+4. Matches the protagonist's background
+5. Sets up meaningful new choices
+
+Return only the story text, no additional formatting."""
+
+        try:
+            message = self.anthropic_client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=400,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            new_story = message.content[0].text.strip()
+            new_node_id = f"{parent_node_id}_expanded_{len(parent_node.children) + 1}"
+            
+            new_node = Node(
+                f"expansion_{new_node_id}",
+                parent=parent_node,
+                story=new_story,
+                node_id=new_node_id
+            )
+            
+            return new_node
+            
+        except Exception as e:
+            print(f"New branch generation failed: {e}")
+            return None
+    
+    def expand_tree_based_on_feedback(self, protagonist: Protagonist) -> List[str]:
+        """Analyze feedback and expand tree with new branches"""
+        expansion_candidates = self.feedback_storage.get_nodes_needing_expansion()
+        expanded_nodes = []
+        
+        for node_id in expansion_candidates:
+            # Analyze feedback for this node
+            feedback_analysis = self._analyze_feedback_with_llm(node_id)
+            if not feedback_analysis:
+                continue
+            
+            # Generate new branch if analysis suggests it's worthwhile
+            if feedback_analysis.average_rating >= 3.5:
+                new_node = self._generate_new_story_branch(node_id, feedback_analysis, protagonist)
+                if new_node:
+                    expanded_nodes.append(new_node.node_id)
+        
+        return expanded_nodes
+    
+    def make_choice(self, choice_index: int, protagonist: Protagonist) -> Tuple[bool, bool]:
+        """Make a choice and advance the story. Returns (success, needs_expansion)"""
         if not self.current_node:
-            return False
+            return False, False
         
         # Handle pre-defined tree navigation
         if self.current_node.children:
             if 0 <= choice_index < len(self.current_node.children):
                 self.current_node = list(self.current_node.children)[choice_index]
-                return True
-            return False
+                return True, False
+            return False, False
         
-        # For dynamic choices, we would generate new nodes here
-        # For now, just show a continuation message
-        print(f"\n[Dynamic choice {choice_index + 1} selected - this would expand the tree in Phase 2]")
-        return False
+        # For leaf nodes (end of predefined tree), check for dynamic expansion
+        expanded_nodes = self.expand_tree_based_on_feedback(protagonist)
+        if expanded_nodes:
+            print(f"\n[New story branches have been generated based on player feedback!]")
+            # Navigate to the first new branch
+            if self.current_node.children:
+                self.current_node = list(self.current_node.children)[0]
+                return True, True
+        
+        # No expansion available yet
+        return False, True
     
     def print_tree_structure(self):
         """Debug function to print the entire tree structure"""
@@ -601,10 +878,17 @@ class Game:
         print("=" * 60)
         print("         WELCOME TO ORACULUS")
         print("    A Dynamic Text-Based Adventure Game")
+        print("         🎯 Phase 2 - Now with Player Feedback!")
         print("=" * 60)
         print("\nIn this game, your choices shape the story.")
         print("Each decision creates new possibilities and branches.")
-        print("Your character's background influences available options.\n")
+        print("Your character's background influences available options.")
+        print("\n✨ NEW IN PHASE 2:")
+        print("• Provide feedback after story segments")
+        print("• Rate your experience (1-5 stars)")
+        print("• Share suggestions and comments")
+        print("• Help the story evolve based on player input")
+        print("• Dynamic tree expansion powered by Claude AI\n")
     
     def create_protagonist(self):
         """Create and customize the protagonist"""
@@ -679,8 +963,62 @@ class Game:
             for i, choice in enumerate(choices, 1):
                 print(f"{i}. {choice}")
         else:
-            print("\n[End of current story branch - more content coming in Phase 2!]")
+            print("\n[End of current story branch]")
+            print("This is where Phase 2 expansion happens based on player feedback!")
             self.running = False
+    
+    def collect_feedback(self, choice_index: int) -> Optional[PlayerFeedback]:
+        """Collect feedback from player after making a choice"""
+        print("\n" + "~" * 40)
+        print("📝 STORY FEEDBACK (Phase 2 Feature)")
+        print("Help us improve the story experience!")
+        print("~" * 40)
+        
+        # Ask if player wants to leave feedback
+        wants_feedback = input("\nWould you like to provide feedback on this story segment? (y/n): ").strip().lower()
+        if wants_feedback not in ['y', 'yes']:
+            return None
+        
+        # Collect rating
+        while True:
+            try:
+                rating_input = input("\nRate this story segment (1-5 stars): ").strip()
+                rating = int(rating_input)
+                if 1 <= rating <= 5:
+                    break
+                else:
+                    print("Please enter a rating between 1 and 5.")
+            except ValueError:
+                print("Please enter a valid number.")
+        
+        # Collect comment
+        print("\nWhat did you think of this part? Any suggestions?")
+        print("(Optional - press Enter to skip, or type your thoughts):")
+        comment = input("> ").strip()
+        
+        # Create and store feedback
+        feedback = PlayerFeedback(
+            node_id=self.story_tree.current_node.node_id,
+            choice_index=choice_index,
+            rating=rating,
+            comment=comment or "No comment provided",
+            protagonist_context=str(self.protagonist)
+        )
+        
+        self.story_tree.feedback_storage.add_feedback(feedback)
+        
+        print(f"\n✅ Thank you for your feedback! (Rating: {rating}/5)")
+        
+        # Show feedback impact
+        feedback_summary = self.story_tree.feedback_storage.get_feedback_summary(feedback.node_id)
+        if feedback_summary['count'] > 1:
+            print(f"📊 This segment now has {feedback_summary['count']} feedback entries")
+            print(f"   Average rating: {feedback_summary['average_rating']:.1f}/5")
+            
+            if feedback_summary['count'] >= 3:
+                print("🎯 This segment may be expanded in future playthroughs!")
+        
+        return feedback
     
     def handle_player_input(self):
         """Handle player input and choices"""
@@ -700,12 +1038,31 @@ class Game:
                 
                 choice_num = int(user_input)
                 if 1 <= choice_num <= len(choices):
-                    success = self.story_tree.make_choice(choice_num - 1, self.protagonist)
-                    if not success:
-                        print("\n[This choice will be fully implemented in Phase 2]")
-                        print("The story continues to evolve based on player feedback...")
+                    choice_index = choice_num - 1
+                    
+                    # Make the choice
+                    success, needs_expansion = self.story_tree.make_choice(choice_index, self.protagonist)
+                    
+                    if success:
+                        # Collect feedback after a successful choice
+                        self.collect_feedback(choice_index)
+                        break
+                    elif needs_expansion:
+                        # Reached end of tree, collect feedback for potential expansion
+                        print("\n[End of predefined story path reached]")
+                        feedback = self.collect_feedback(choice_index)
+                        
+                        if feedback and feedback.rating >= 4:
+                            print("\n🌟 Your high rating suggests this path should be expanded!")
+                            print("The story will grow based on feedback from multiple players.")
+                        
+                        print("\nThe adventure continues to evolve based on player feedback...")
                         self.running = False
-                    break
+                        break
+                    else:
+                        print("\n[Invalid choice]")
+                        self.running = False
+                        break
                 else:
                     print(f"Please enter a number between 1 and {len(choices)}")
                     

@@ -48,8 +48,8 @@ A dynamic text-based adventure game that evolves based on player choices and fee
 
 ## Features
 
-### Phase 1 (Current Implementation)
-✅ **Complete Core Game Architecture:**
+### Phase 1 (Complete) ✅
+**Core Game Architecture:**
 - Python-based text adventure with tree structure using `anytree`
 - Protagonist customization (gender, age, starting situation)
 - 8-node seed story tree with branching paths
@@ -57,10 +57,16 @@ A dynamic text-based adventure game that evolves based on player choices and fee
 - Local caching system for LLM-generated content
 - Terminal-based interface with intuitive navigation
 
-### Phase 2 (Planned)
-- User feedback collection system
-- Dynamic tree expansion based on player input
-- LLM-driven story evaluation and branch selection
+### Phase 2 (Complete) ✅
+**User Feedback and Dynamic Tree Growth:**
+- ✅ Interactive feedback collection system after story choices
+- ✅ Player rating system (1-5 stars) with comments
+- ✅ Persistent feedback storage in JSON format (`feedback_data.json`)
+- ✅ LLM-powered feedback analysis using Claude API
+- ✅ Automatic story expansion based on accumulated player feedback
+- ✅ Dynamic branch generation when feedback reaches threshold (3+ entries, 3.5+ rating)
+- ✅ Intelligent content creation incorporating player suggestions and themes
+- ✅ Real-time feedback statistics and expansion notifications
 
 ### Phase 3 (Planned)
 - Flask backend API
@@ -80,7 +86,8 @@ Oraculus/
 ├── requirements.txt     # Python dependencies
 ├── README.md           # This file
 ├── .env                # Environment variables (create this)
-└── choice_cache.json   # LLM choice cache (auto-generated)
+├── choice_cache.json   # LLM choice cache (auto-generated)
+└── feedback_data.json  # Player feedback storage (auto-generated)
 ```
 
 ## Claude API Integration
@@ -96,10 +103,13 @@ The game works without the Claude API (using fallback choices), but the experien
 - Fallback choice generation
 - Basic story progression
 
-### With API Key
+### With API Key (Phase 1 + 2 Features)
 - Dynamic choice generation based on protagonist and story context
 - Personalized story elements
 - Cached responses for better performance
+- **Phase 2:** LLM-powered feedback analysis and story evaluation
+- **Phase 2:** Intelligent story branch expansion based on player input
+- **Phase 2:** Dynamic content generation using accumulated feedback themes
 
 ## Dependencies
 
